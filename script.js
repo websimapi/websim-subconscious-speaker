@@ -48,6 +48,7 @@ function stopLlmTyping() {
 
 async function fetchAndProcessLlmResponse(isUserContinuation = false) {
     stopLlmTyping();
+    typedTextElement.classList.remove('user-typing-active'); // Ensure LLM text is not green
     cursorElement.style.display = 'none'; // Hide cursor during LLM fetch
 
     let currentScreenText = typedTextElement.textContent;
@@ -58,7 +59,7 @@ async function fetchAndProcessLlmResponse(isUserContinuation = false) {
            currentScreenText += '\n';
         }
         currentScreenText += '\n'; // Add the second newline for a blank line
-        typedTextElement.textContent = currentScreenText;
+        typedTextElement.textContent = currentScreenText; // Update textContent before sending to LLM
         scrollToBottom();
     }
     
@@ -73,13 +74,15 @@ async function fetchAndProcessLlmResponse(isUserContinuation = false) {
         });
 
         const llmResponseText = completion.content;
+        // Add LLM's actual response to history for next turn.
+        // Ensure this is the response content itself, not including system instructions.
         conversationHistory.push({ role: "assistant", content: llmResponseText });
 
 
         if (!llmResponseText || llmResponseText.trim() === "") {
             console.warn("LLM returned empty or whitespace response. Scheduling next attempt.");
             streamTimeoutId = setTimeout(() => fetchAndProcessLlmResponse(false), PAUSE_BETWEEN_THOUGHTS_MS);
-            cursorElement.style.display = ''; // Show cursor during pause
+            cursorElement.style.display = typedTextElement.textContent.length > 0 ? '' : 'none'; // Show cursor during pause
             return;
         }
 
@@ -93,7 +96,7 @@ async function fetchAndProcessLlmResponse(isUserContinuation = false) {
         console.error("Error fetching LLM response:", error);
         // Retry after a delay in case of error
         streamTimeoutId = setTimeout(() => fetchAndProcessLlmResponse(false), PAUSE_BETWEEN_THOUGHTS_MS * 2);
-        cursorElement.style.display = ''; // Show cursor during pause
+        cursorElement.style.display = typedTextElement.textContent.length > 0 ? '' : 'none'; // Show cursor during pause
     }
 }
 
@@ -122,8 +125,8 @@ async function typeCharacterOrCommand() {
 
     if (currentLlmSegmentIndex >= currentLlmSegment.length) {
         llmIsTyping = false;
-        // Schedule next LLM thought only if user is not currently typing
-        if (!userIdleTimeoutId) { // Check if user is not in their idle timeout phase
+        // Schedule next LLM thought only if user is not currently typing or has not just typed
+        if (!userIdleTimeoutId) { 
              streamTimeoutId = setTimeout(() => fetchAndProcessLlmResponse(false), PAUSE_BETWEEN_THOUGHTS_MS);
         }
         return;
@@ -150,35 +153,56 @@ function scrollToBottom() {
 }
 
 function handleUserInput() {
-    stopLlmTyping();
-    cursorElement.style.display = 'none'; // User is typing, hide custom cursor
+    // This function is called on 'input', so user is actively typing or modifying text.
+    stopLlmTyping(); // Stop any ongoing or scheduled LLM typing.
+    
+    // Ensure the text color is green for user input.
+    // The 'focus' event already adds this, but good to ensure.
+    typedTextElement.classList.add('user-typing-active');
+    cursorElement.style.display = 'none'; // User is typing, hide custom LLM cursor.
 
     if (userIdleTimeoutId) clearTimeout(userIdleTimeoutId);
     
     userIdleTimeoutId = setTimeout(() => {
         userIdleTimeoutId = null; // Clear the timeout ID once it has fired
-        // Don't add newline if user was last to type.
+        // User has stopped typing. LLM should take over.
+        // fetchAndProcessLlmResponse will handle removing 'user-typing-active' class.
         fetchAndProcessLlmResponse(true); // True indicates user continuation
     }, USER_IDLE_DELAY_MS);
 }
 
 function init() {
-    typedTextElement.contentEditable = "plaintext-only"; // Or "true"
+    typedTextElement.contentEditable = "plaintext-only";
     
     typedTextElement.addEventListener('input', handleUserInput);
 
     typedTextElement.addEventListener('focus', () => {
-        // When user focuses to type, ensure LLM is stopped and custom cursor is hidden
         stopLlmTyping(); 
-        cursorElement.style.display = 'none';
+        typedTextElement.classList.add('user-typing-active'); // User's typed text will be green
+        cursorElement.style.display = 'none'; // Hide LLM cursor, show native browser cursor
+        // Browser default behavior will place cursor where clicked or at end.
     });
 
     typedTextElement.addEventListener('blur', () => {
-        // If user blurs and LLM isn't about to type (e.g. during user idle phase),
-        // and not actively typing, show custom cursor.
-        if (!llmIsTyping && !userIdleTimeoutId) {
-             cursorElement.style.display = typedTextElement.textContent.length > 0 ? '' : 'none';
+        typedTextElement.classList.remove('user-typing-active'); // Revert text color
+
+        if (userIdleTimeoutId) {
+            // User was typing, and their idle timeout is pending.
+            // LLM will take over when timeout fires. Native cursor disappears on blur.
+            // LLM cursor will be handled by fetchAndProcessLlmResponse.
+        } else if (!llmIsTyping) {
+            // User focused, then blurred, without typing OR LLM finished & element blurred.
+            // LLM is not currently typing, and no user input is pending to trigger LLM.
+            cursorElement.style.display = typedTextElement.textContent.length > 0 ? '' : 'none'; // Show LLM cursor.
+            
+            // If LLM is not already scheduled to resume (e.g. from its own pause), reschedule it.
+            // This handles cases where focus interrupted LLM and no user input followed.
+            if (!streamTimeoutId) { 
+                 streamTimeoutId = setTimeout(() => fetchAndProcessLlmResponse(false), PAUSE_BETWEEN_THOUGHTS_MS);
+            }
         }
+        // If llmIsTyping is true when blur occurs (e.g., focus changed by dev tools),
+        // LLM continues, and its cursor should already be visible/managed.
     });
     
     // Initial fetch to start the stream
