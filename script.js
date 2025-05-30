@@ -180,7 +180,14 @@ function init() {
         stopLlmTyping(); 
         typedTextElement.classList.add('user-typing-active'); // User's typed text will be green
         cursorElement.style.display = 'none'; // Hide LLM cursor, show native browser cursor
-        // Browser default behavior will place cursor where clicked or at end.
+        
+        // Position cursor at the end of existing text
+        const range = document.createRange();
+        const selection = window.getSelection();
+        range.selectNodeContents(typedTextElement);
+        range.collapse(false); // Collapse to end
+        selection.removeAllRanges();
+        selection.addRange(range);
     });
 
     typedTextElement.addEventListener('blur', () => {

@@ -45,7 +45,11 @@ body {
 }
 
 #typed-text.user-typing-active {
-    color: #4CAF50; /* Green color for user typing */
+    color: #e0e0e0; /* Keep existing text white */
+}
+
+#typed-text.user-typing-active::after {
+    color: #4CAF50; /* Green color for new user input */
 }
 
 #cursor {
