@@ -29,20 +29,28 @@ body {
     line-height: 1.5;
     border-top: 1px solid #333;
     flex-grow: 1; /* Allow container to take space if content is short */
-    overflow-y: auto; /* In case text overflows, though it should wrap */
-    margin-top: auto; /* Pushes to bottom if body content is short */
+    overflow-y: auto; 
+    margin-top: auto; 
+    white-space: pre-wrap; 
+    word-break: break-word; 
+    caret-color: #4CAF50; /* Color for the native caret */
 }
 
-#typed-text {
-    white-space: pre-wrap; /* Respects newlines and wraps text */
-    word-break: break-word; /* Break words to prevent overflow */
+#subtitles-container:focus {
+    outline: 1px solid #4CAF50;
 }
 
 #cursor {
-    font-weight: bold;
-    color: #4CAF50; /* Green cursor */
+    display: inline; /* Allows it to flow with text */
+    position: relative;
     animation: blink 1s step-start infinite;
-    margin-left: 1px;
+}
+
+#cursor::after {
+    content: "|";
+    color: #4CAF50; /* Green cursor */
+    font-weight: bold;
+    margin-left: 1px; /* Small separation */
 }
 
 @keyframes blink {
@@ -52,10 +60,9 @@ body {
 
 /* Style for when the body content naturally pushes the subtitle bar to the bottom */
 body:not(:has(#header ~ #subtitles-container:last-child)) #subtitles-container {
-   margin-top: 0; /* If there's content above that fills height, don't add margin-top */
+   margin-top: 0; 
 }
 
-/* Ensure body takes full height to allow flex-end for subtitle container alignment */
 html, body {
     height: 100%;
 }
@@ -66,7 +73,18 @@ body {
 }
 
 #subtitles-container {
-    /* ... existing styles ... */
+    background-color: rgba(0, 0, 0, 0.8); /* Semi-opaque black bar for subtitles */
+    padding: 20px 25px;
+    width: 100%;
+    box-sizing: border-box;
+    font-size: clamp(18px, 2.5vw, 28px); /* Responsive font size */
+    line-height: 1.5;
+    border-top: 1px solid #333;
+    flex-grow: 1; /* Allow container to take space if content is short */
+    overflow-y: auto; 
+    margin-top: auto; 
+    white-space: pre-wrap; 
+    word-break: break-word; 
+    caret-color: #4CAF50; /* Color for the native caret */
     margin-top: auto; /* This pushes the subtitle bar to the bottom */
 }
-
