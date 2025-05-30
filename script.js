@@ -15,7 +15,7 @@ const thoughtTexts = [
     "The model will come be pinged to think constantly so there is some thought happening<er10> some new idea generating.",
     "To render this thought we will make it appear in a stream where each thought word comes in as it would have ben<er3>en thought.",
     "This is like subtitles for the mind. A telegrapher typing out the inner voice. <er15>the inner workings.",
-    "Errors are part of the process. <er3>Correction is key. Watch <erN> me fix this typo.<er13> Watch me adjust my phrasing." // <erN> was a placeholder, actual example is <er13>
+    "Errors are part of the process. <er3>Correction is key. Watch <er13> me fix this typo.<er13> Watch me adjust my phrasing."
 ];
 
 let currentThoughtText = "";
@@ -24,7 +24,7 @@ let currentIndex = 0; // Position in currentThoughtText
 function selectNewThought() {
     currentThoughtText = thoughtTexts[random(0, thoughtTexts.length - 1)];
     currentIndex = 0;
-    typedTextElement.textContent = ''; // Clear previous text
+    // No longer clearing typedTextElement.textContent here
 }
 
 function erase(count) {
@@ -46,6 +46,12 @@ function erase(count) {
 async function processStream() {
     if (currentIndex >= currentThoughtText.length) {
         await new Promise(resolve => setTimeout(resolve, PAUSE_BETWEEN_THOUGHTS_MS));
+        
+        // Add a separator before starting a new thought, if there's existing text
+        if (typedTextElement.textContent.length > 0) {
+            typedTextElement.textContent += '\n\n'; 
+        }
+        
         selectNewThought();
         // Fall through to schedule next processing tick
         setTimeout(processStream, random(TYPING_SPEED_MIN_MS, TYPING_SPEED_MAX_MS));
@@ -74,4 +80,3 @@ async function processStream() {
 // Initial setup
 selectNewThought();
 processStream(); // Start the simulation
-
